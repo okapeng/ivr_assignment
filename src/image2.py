@@ -65,7 +65,7 @@ class image_converter:
 
   # Detecting the centre of the yellow circle
   def detect_yellow(self,image):
-      mask = cv2.inRange(image, (0, 100, 100), (0, 255, 255))
+      mask = cv2.inRange(image, (0, 100, 100), (0, 255, 139))
       kernel = np.ones((5, 5), np.uint8)
       mask = cv2.dilate(mask, kernel, iterations=3)
       M = cv2.moments(mask)
@@ -89,11 +89,11 @@ class image_converter:
     a = self.pixel2meter(image)
     # Obtain the centre of each coloured blob 
     center = self.detect_yellow(image)
-    circle1Pos = self.detect_blue(image) 
-    circle2Pos = self.detect_green(image) 
-    circle3Pos = self.detect_red(image)
-    
-    return a * np.array(center+ circle1Pos+ circle2Pos+ circle3Pos)
+    circle1Pos = [j-i for i, j in zip(self.detect_blue(image), center)]
+    circle2Pos = [j-i for i, j in zip(self.detect_green(image), center)]
+    circle3Pos = [j-i for i, j in zip(self.detect_red(image), center)]
+
+    return a * np.array(circle1Pos+ circle2Pos+ circle3Pos)
 
 
 
