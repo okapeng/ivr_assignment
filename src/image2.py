@@ -78,10 +78,10 @@ class image_converter:
   def pixel2meter(self,image):
       # Obtain the centre of each coloured blob
       circle1Pos = np.array(self.detect_blue(image))
-      circle2Pos = np.array(self.detect_green(image))
+      circle2Pos = np.array(self.detect_yellow(image))
       # find the distance between two circles
       dist = np.sum((circle1Pos - circle2Pos)**2)
-      return 3 / np.sqrt(dist)
+      return 2 / np.sqrt(dist)
 
 
     # Calculate the relevant joint angles from the image
@@ -105,7 +105,7 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
     # Uncomment if you want to save the image
-    #cv2.imwrite('image_copy.png', cv_image)
+    cv2.imwrite('image2_copy.png', self.cv_image2)
     im2=cv2.imshow('window2', self.cv_image2)
     cv2.waitKey(1)
 

@@ -35,29 +35,37 @@ class image_processer:
         self.blue[1] = p[0, 0]
         self.green[1] = p[1, 0]
         self.red[1] = p[2, 0]
-        self.calculate_transform()
+        print(self.red)
+        # self.calculate_transform()
 
     def callback2(self, pos):
         p = np.reshape(np.array(pos.data), [3, 2])
         self.blue[0] = p[0, 0]
         self.green[0] = p[1, 0]
         self.red[0] = p[2, 0]
-        self.calculate_transform()
+        # self.calculate_transform()
 
-    def calculate_transform(self):
-        # print self.blue
-        self.transform_matrix()
+    # def calculate_transform(self):
+    #     # print self.blue
+
+        
+
+    def transform(self,theta1,theta2,theta3,theta4):
+        T10 = self.transform_matrix(np.pi/2, 0, 2, theta1)
+        T21 = self.transform_matrix(np.pi/2, 0, 0, theta2)
+        T32 = self.transform_matrix(np.pi/2, 3, 0, theta3)
+        T43 = self.transform_matrix(0, 2, 0, theta4)
+        T = T10.dot(T21).dot(T32).dot(T43)
 
 
-    def transform_matrix(self):
-        def vector_product(v1,v2):
-          return np.array([v1[0]*v2.T, v1[1]*v2.T,v1[2]*v2.T,v1[3]*v2.T])
-        # print M
-        # inv =  np.linalg.inv(vector_product(self.blue,self.blue))
-        print vector_product(self.blue,self.blue)
-        # T31 = np.dot(vector_product(self.green,self.blue) , inv)
-        # print T31
-        # print inv
+
+    def transform_matrix(self, alpha, r, d, theta):
+        return np.array([
+            [np.cos(theta), -np.sin(theta)*np.cos(alpha), np.sin(theta)*np.sin(alpha), r*np.cos(theta)],
+            [np.sin(theta), np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), r*np.sin(theta)],
+            [0,np.sin(alpha), np.cos(alpha), d],
+            [0,0,0,1]
+        ])
 
 
 # call the class
