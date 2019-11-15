@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 
 import roslib
 import sys
@@ -24,6 +24,78 @@ class image_converter:
     # initialize the bridge between openCV and ROS
     self.bridge = CvBridge()
 
+    self.pos_pub2 = rospy.Publisher('joint_pos2', Float64MultiArray, queue_size=5)
+    # In this method you can focus on detecting the centre of the red circle
+
+    # In this method you can focus on detecting the centre of the red circle
+  def detect_red(self,image):
+      # Isolate the blue colour in the image as a binary image
+      mask = cv2.inRange(image, (0, 0, 100), (0, 0, 255))
+      # This applies a dilate that makes the binary region larger (the more iterations the larger it becomes)
+      kernel = np.ones((5, 5), np.uint8)
+      mask = cv2.dilate(mask, kernel, iterations=3)
+      # Obtain the moments of the binary image
+      M = cv2.moments(mask)
+      # Calculate pixel coordinates for the centre of the blob
+      cx = int(M['m10'] / M['m00'])
+      cy = int(M['m01'] / M['m00'])
+      return [cx, cy]
+ 
+
+  # Detecting the centre of the green circle
+  def detect_green(self,image):
+      mask = cv2.inRange(image, (0, 100, 0), (0, 255, 0))
+      kernel = np.ones((5, 5), np.uint8)
+      mask = cv2.dilate(mask, kernel, iterations=3)
+      M = cv2.moments(mask)
+      cx = int(M['m10'] / M['m00'])
+      cy = int(M['m01'] / M['m00'])
+      return [cx, cy]
+
+
+  # Detecting the centre of the blue circle
+  def detect_blue(self,image):
+      mask = cv2.inRange(image, (100, 0, 0), (255, 0, 0))
+      kernel = np.ones((5, 5), np.uint8)
+      mask = cv2.dilate(mask, kernel, iterations=3)
+      M = cv2.moments(mask)
+      cx = int(M['m10'] / M['m00'])
+      cy = int(M['m01'] / M['m00'])
+      return [cx, cy]
+
+  # Detecting the centre of the yellow circle
+  def detect_yellow(self,image):
+      mask = cv2.inRange(image, (0, 100, 100), (0, 255, 139))
+      kernel = np.ones((5, 5), np.uint8)
+      mask = cv2.dilate(mask, kernel, iterations=3)
+      M = cv2.moments(mask)
+      cx = int(M['m10'] / M['m00'])
+      cy = int(M['m01'] / M['m00'])
+      return [cx, cy]
+
+
+  # Calculate the conversion from pixel to meter
+  def pixel2meter(self,image):
+      # Obtain the centre of each coloured blob
+      circle1Pos = np.array(self.detect_blue(image))
+      circle2Pos = np.array(self.detect_yellow(image))
+      # find the distance between two circles
+      dist = np.sum((circle1Pos - circle2Pos)**2)
+      return 2 / np.sqrt(dist)
+
+
+    # Calculate the relevant joint angles from the image
+  def detect_joint_pos(self,image):
+    a = self.pixel2meter(image)
+    # Obtain the centre of each coloured blob 
+    center = self.detect_yellow(image)
+    circle1Pos = [j-i for i, j in zip(self.detect_blue(image), center)]
+    circle2Pos = [j-i for i, j in zip(self.detect_green(image), center)]
+    circle3Pos = [j-i for i, j in zip(self.detect_red(image), center)]
+
+    return a * np.array(circle1Pos+ circle2Pos+ circle3Pos)
+
+
 
   # Recieve data, process it, and publish
   def callback2(self,data):
@@ -33,13 +105,20 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
     # Uncomment if you want to save the image
-    #cv2.imwrite('image_copy.png', cv_image)
+    cv2.imwrite('image2_copy.png', self.cv_image2)
     im2=cv2.imshow('window2', self.cv_image2)
     cv2.waitKey(1)
+
+    joints_pos_data = self.detect_joint_pos(self.cv_image2)
+
+    self.joints_pos = Float64MultiArray()
+    self.joints_pos.data = joints_pos_data
+    print(self.joints_pos.data)
 
     # Publish the results
     try: 
       self.image_pub2.publish(self.bridge.cv2_to_imgmsg(self.cv_image2, "bgr8"))
+      self.pos_pub2.publish(self.joints_pos)
     except CvBridgeError as e:
       print(e)
 
