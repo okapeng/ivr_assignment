@@ -6,7 +6,7 @@ def transform(theta1,theta2,theta3,theta4):
         T32 = transform_matrix(np.pi/2, 0, 0, theta2+np.pi/2)
         T43 = transform_matrix(np.pi/2, 0, 0, theta3+np.pi/2)
         T54 = transform_matrix(np.pi/2, 0, 3, np.pi/2)
-        T65 = transform_matrix(-np.pi/2, 0, 2, theta4)
+        T65 = transform_matrix(-np.pi/2, 0, 0, theta4)
         T76 = transform_matrix(0, 0, 2, 0)
         T = T21.dot(T32).dot(T43).dot(T54).dot(T65).dot(T76)
         print(np.round(T21.dot(T32).dot(T43).dot(T54),3))
