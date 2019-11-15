@@ -65,7 +65,7 @@ class image_converter:
 
   # Detecting the centre of the yellow circle
   def detect_yellow(self,image):
-      mask = cv2.inRange(image, (0, 100, 100), (0, 255, 255))
+      mask = cv2.inRange(image, (0, 100, 100), (0, 255, 139))
       kernel = np.ones((5, 5), np.uint8)
       mask = cv2.dilate(mask, kernel, iterations=3)
       M = cv2.moments(mask)
@@ -74,26 +74,26 @@ class image_converter:
       return [cx, cy]
 
 
-  # Calculate the conversion from pixel to meter
-  def pixel2meter(self,image):
-      # Obtain the centre of each coloured blob
-      circle1Pos = np.array(self.detect_blue(image))
-      circle2Pos = np.array(self.detect_green(image))
-      # find the distance between two circles
-      dist = np.sum((circle1Pos - circle2Pos)**2)
-      return 3 / np.sqrt(dist)
+  # # Calculate the conversion from pixel to meter
+  # def pixel2meter(self,image):
+  #     # Obtain the centre of each coloured blob
+  #     circle1Pos = np.array(self.detect_blue(image))
+  #     circle2Pos = np.array(self.detect_yellow(image))
+  #     # find the distance between two circles
+  #     dist = np.sum((circle1Pos - circle2Pos)**2)
+  #     return 2 / np.sqrt(dist)
 
 
     # Calculate the relevant joint angles from the image
   def detect_joint_pos(self,image):
-    a = self.pixel2meter(image)
+    # a = self.pixel2meter(image)
     # Obtain the centre of each coloured blob 
     center = self.detect_yellow(image)
-    circle1Pos = self.detect_blue(image) 
-    circle2Pos = self.detect_green(image) 
-    circle3Pos = self.detect_red(image)
-    
-    return a * np.array(center+ circle1Pos+ circle2Pos+ circle3Pos)
+    circle1Pos = [j-i for i, j in zip(self.detect_blue(image), center)]
+    circle2Pos = [j-i for i, j in zip(self.detect_green(image), center)]
+    circle3Pos = [j-i for i, j in zip(self.detect_red(image), center)]
+
+    return np.array(circle1Pos+ circle2Pos+ circle3Pos)
 
 
 
@@ -105,7 +105,7 @@ class image_converter:
     except CvBridgeError as e:
       print(e)
     # Uncomment if you want to save the image
-    #cv2.imwrite('image_copy.png', cv_image)
+    cv2.imwrite('image2_copy.png', self.cv_image2)
     im2=cv2.imshow('window2', self.cv_image2)
     cv2.waitKey(1)
 
@@ -134,5 +134,4 @@ def main(args):
 # run the code if the node is called
 if __name__ == '__main__':
     main(sys.argv)
-
 

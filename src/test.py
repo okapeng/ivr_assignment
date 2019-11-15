@@ -24,6 +24,6 @@ def transform_matrix(alpha, r, d, theta):
 
 X = np.array([0,0,0,1])
 # print(T)
-T=np.round(transform(0,0, 0, np.pi/4), 3)
-print(T)
+T=np.round(transform(0,0,1,1), 3)
+print(T.dot(np.array([0,0,0,1])))
 # print(np.linalg.inv(T))
