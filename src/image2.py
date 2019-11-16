@@ -127,7 +127,7 @@ class image_converter:
 
         self.joints_pos = Float64MultiArray()
         self.joints_pos.data = joints_pos_data
-        # print(self.joints_pos.data)
+        print(self.joints_pos.data)
 
         # Publish the results
         try:

@@ -5,7 +5,7 @@ import sys
 import rospy
 import cv2
 import numpy as np
-from scipy.optimize import leastsq
+from scipy.optimize import leastsq, least_squares
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, Float64
@@ -76,79 +76,81 @@ class image_processer:
         return
 
     def estimate_joint_angles(self):
-        # def F2(x,data):
-        #     return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
-        def F2(x,data):
-            return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
         # def F1(x, data):
-        #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
-        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
-        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
-        # def F1(x, data):
-        #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
-        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
-        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
-        def F1(x, data):
-            return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
-                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
-                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
-                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
-        solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
-        self.joint1, self.joint2, self.joint3, self.joint4 = list(np.round(solution[0],1))
-        # solution = leastsq(F1, [0,0,0], args=[self.green[0],self.green[1], self.green[2]])
-        # self.joint1, self.joint2, self.joint3 = list(np.round(solution[0],1))
-        # solution = leastsq(F2, 0, args=[self.red[2], self.green[2], self.joint2, self.joint3])
-        # self.joint4 = np.round(solution[0][0],1)
+        #     return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
+        #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
+        def F1(x, gx,gy,gz,rz):
+            return np.array([(3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-gx),
+                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-gy),
+                    (3*np.cos(x[1])*np.cos(x[2])+2-gz),
+                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
+        # solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        solution = least_squares(F1, [0,0,0,0], bounds=([-np.pi/2,np.pi/2]), args=(self.green[0],self.green[1], self.green[2], self.red[2]))
+        self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution.x,2)
         print(self.joint1, self.joint2, self.joint3, self.joint4)
+        # print(solution.x)
 
     def callback1(self, pos):
-        self.p1 = pos.data
+        self.p1 = np.reshape(np.array(pos.data), [4, 2])
         self.calculate_transform()
 
     def callback2(self, pos):
-        self.p2 = pos.data
-        # self.calculate_transform()
+        self.p2 = np.reshape(np.array(pos.data), [4, 2])
+        # self.calculate_transform()  
 
+    def check_position(self, j1, j2):
+        if (np.absolute(j1[2] - j2[2]) < 0.1):
+            j1[0] = j1[0] if j1[0] != 0 else j2[0]
+            j2[0] = j2[0] if j2[0] != 0 else j1[0]
+            j1[1] = j1[1] if j1[1] != 0 else j2[1]
+            j2[1] = j2[1] if j2[1] != 0 else j1[1]
 
     def calculate_transform(self):
         if self.p1 is not None and self.p2 is not None:
-            p = np.reshape(np.array(self.p1), [4, 2])
-            self.blue[1] = -p[0, 0]
-            self.green[1] = -p[1, 0]
-            self.red[1] = -p[2, 0]
-            self.target[1] = -p[3, 0]
+            # print(self.p1)
+            self.blue[1] = -self.p1[0, 0]
+            self.green[1] = -self.p1[1, 0]
+            self.red[1] = -self.p1[2, 0]
+            self.target[1] = -self.p1[3, 0]
 
-            p = np.reshape(np.array(self.p2), [4, 2])
-            self.blue[2] = p[0, 1]
-            self.green[2] = p[1, 1]
-            self.red[2] = p[2, 1]
-            self.target[2] = p[3, 1]
-            self.blue[0] = -p[0, 0]
-            self.green[0] = -p[1, 0]
-            self.red[0] = -p[2, 0]
-            self.target[0] = -p[3, 0]
+            self.blue[0] = -self.p2[0, 0]
+            self.green[0] = -self.p2[1, 0]
+            self.red[0] = -self.p2[2, 0]
+            self.target[0] = -self.p2[3, 0]
+
+            self.blue[2] = self.p2[0, 1] if self.p2[0, 1] == 0 else self.p1[0, 1]
+            self.green[2] = self.p2[1, 1] if self.p2[1, 1] == 0 else self.p1[1, 1]
+            self.red[2] = self.p2[2, 1] if self.p2[2, 1] == 0 else self.p1[2, 1]
+            self.target[2] = self.p2[3, 1] if self.p2[3, 1] == 0 else self.p1[3, 1]
+
+            self.check_position(self.red, self.blue)
+            self.check_position(self.green, self.blue)
+            self.check_position(self.red, self.green)
 
             # print("green: ", self.green)
             # print("red  : ", self.red)
-            print("target  : ", self.target)
+            # print("target  : ", self.target)
             self.p1 = None
             self.p2 = None
-            # self.estimate_joint_angles()
-
+            T = self.forward_kinematic()
+            print(np.round(T.dot(np.array([0,0,0,1])),3))
   
 
-    def transform(theta1,theta2,theta3,theta4):
-        # T10 = transform_matrix(0, 0, 0, theta1)
-        T21 = transform_matrix(np.pi/2, 0, 2, theta1)
-        T32 = transform_matrix(np.pi/2, 0, 0, theta2+np.pi/2)
-        T43 = transform_matrix(np.pi/2, 0, 0, theta3+np.pi/2)
-        T54 = transform_matrix(np.pi/2, 0, 3, np.pi/2)
-        T65 = transform_matrix(-np.pi/2, 0, 0, theta4)
-        T76 = transform_matrix(0, 0, 2, 0)
-        T = T21.dot(T32).dot(T43).dot(T54).dot(T65).dot(T76)
-        
-        return T
-
+    def forward_kinematic(self):
+        self.estimate_joint_angles()
+        # T21 = self.transform_matrix(np.pi/2, 0, 2, self.joint1)
+        # T32 = self.transform_matrix(np.pi/2, 0, 0, self.joint2+np.pi/2)
+        # T43 = self.transform_matrix(np.pi/2, 0, 0, self.joint3+np.pi/2)
+        # T54 = self.transform_matrix(np.pi/2, 0, 3, np.pi/2)
+        # T65 = self.transform_matrix(-np.pi/2, 0, 0, self.joint4)
+        # T76 = self.transform_matrix(0, 0, 2, 0)
+        T21 = self.transform_matrix(np.pi/2, 0, 2, self.joint1+np.pi/2)
+        T32 = self.transform_matrix(np.pi/2, 0, 0, self.joint2+np.pi/2)
+        T43 = self.transform_matrix(-np.pi/2, 3, 0, self.joint3)
+        T54 = self.transform_matrix(0, 2, 0, self.joint4)
+        return T21.dot(T32).dot(T43).dot(T54)
 
 
     def transform_matrix(self, alpha, r, d, theta):
