@@ -36,6 +36,7 @@ class image_processer:
         self.blue = np.ones(4)
         self.red = np.ones(4)
         self.green = np.ones(4)
+        self.target = np.ones(4)
         self.p1 = None
         self.p2 = None
         # record the begining time
@@ -46,7 +47,7 @@ class image_processer:
         self.error = np.array([0.0,0.0], dtype='float64')  
         self.error_d = np.array([0.0,0.0], dtype='float64') 
 
-      def control_closed(self,image):
+    def control_closed(self,image):
         # P gain
         K_p = np.array([[10,0,0], [0,10,0], [0,0,10]])
         # D gain
@@ -58,7 +59,7 @@ class image_processer:
         # robot end-effector position
         pos = self.red
         # desired trajectory
-        pos_d= self.trajectory() 
+        pos_d= self.target 
         # estimate derivative of error
         self.error_d = ((pos_d - pos) - self.error)/dt
         # estimate error
@@ -72,18 +73,33 @@ class image_processer:
 
     def calculate_jacobian(self):
         # Todo
+        return
 
     def estimate_joint_angles(self):
+        # def F2(x,data):
+        #     return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
         def F2(x,data):
             return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
+        # def F1(x, data):
+        #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
+        # def F1(x, data):
+        #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
         def F1(x, data):
-            return ((-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[0]),
-                    (-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[1]),
-                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
-        solution = leastsq(F1, [0,0,0], args=[self.green[1],-self.green[0], self.green[2]])
-        self.joint1, self.joint2, self.joint3 = list(solution[0])
-        solution = leastsq(F2, 0, args=[self.red[2], self.green[2], self.joint2, self.joint3])
-        self.joint4 = solution[0][0]
+            return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
+                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
+        solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        self.joint1, self.joint2, self.joint3, self.joint4 = list(np.round(solution[0],1))
+        # solution = leastsq(F1, [0,0,0], args=[self.green[0],self.green[1], self.green[2]])
+        # self.joint1, self.joint2, self.joint3 = list(np.round(solution[0],1))
+        # solution = leastsq(F2, 0, args=[self.red[2], self.green[2], self.joint2, self.joint3])
+        # self.joint4 = np.round(solution[0][0],1)
+        print(self.joint1, self.joint2, self.joint3, self.joint4)
 
     def callback1(self, pos):
         self.p1 = pos.data
@@ -91,39 +107,34 @@ class image_processer:
 
     def callback2(self, pos):
         self.p2 = pos.data
-        self.calculate_transform()
+        # self.calculate_transform()
 
-    def pixel2meter(self):
-        # Obtain the centre of each coloured blob
-        circle1Pos = self.blue
-        circle2Pos = self.yellow
-        # find the distance between two circles
-        dist = np.sum((circle1Pos - circle2Pos) ** 2)
-        return 2 / np.sqrt(dist)
 
     def calculate_transform(self):
         if self.p1 is not None and self.p2 is not None:
-            p = np.reshape(np.array(self.p1), [3, 2])
+            p = np.reshape(np.array(self.p1), [4, 2])
+            self.blue[1] = -p[0, 0]
+            self.green[1] = -p[1, 0]
+            self.red[1] = -p[2, 0]
+            self.target[1] = -p[3, 0]
+
+            p = np.reshape(np.array(self.p2), [4, 2])
             self.blue[2] = p[0, 1]
             self.green[2] = p[1, 1]
             self.red[2] = p[2, 1]
-            self.blue[1] = p[0, 0]
-            self.green[1] = p[1, 0]
-            self.red[1] = p[2, 0]
+            self.target[2] = p[3, 1]
+            self.blue[0] = -p[0, 0]
+            self.green[0] = -p[1, 0]
+            self.red[0] = -p[2, 0]
+            self.target[0] = -p[3, 0]
 
-            p = np.reshape(np.array(self.p2), [3, 2])
-            self.blue[0] = p[0, 0]
-            self.green[0] = p[1, 0]
-            self.red[0] = p[2, 0]
+            # print("green: ", self.green)
+            # print("red  : ", self.red)
+            print("target  : ", self.target)
+            self.p1 = None
+            self.p2 = None
+            # self.estimate_joint_angles()
 
-            a = self.pixel2meter()
-            self.blue[:3] = a * self.blue[:3]
-            self.red[:3] = a * self.red[:3]
-            self.yellow[:3] = a * self.yellow[:3]
-            self.green[:3] = a * self.green[:3]
-
-    def detect_joint_angles(self):
-        theta1,theta2,theta3,theta4 = Symbols
   
 
     def transform(theta1,theta2,theta3,theta4):
@@ -147,7 +158,6 @@ class image_processer:
             [0,np.sin(alpha), np.cos(alpha), d],
             [0,0,0,1]
         ])
-
 
 # call the class
 def main(args):

@@ -25,20 +25,31 @@ def transform_matrix(alpha, r, d, theta):
 def F2(x,data):
     return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
 
+# def F1(x, data):
+#     return ((-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[0]),
+#             (-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[1]),
+#             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
 def F1(x, data):
-    return ((-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[0]),
-            (-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[1]),
-            (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
+    return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+            (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+            (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
+            (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
+# inverted joint2
+# def F1(x, data):
+#             return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+#                     (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+#                     (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
 
 
 X = np.array([0,0,0,1])
 # print(T)
 
-T=np.round(transform(0,0,np.pi/6,0), 3)
+T=np.round(transform(np.pi/3,np.pi/3,0,0), 3)
 print(T.dot(np.array([0,0,0,1])))
 # print(np.linalg.inv(T))
-angles = [0,0,0]
-r1 = leastsq(F1, angles, args=[-1.5,0, 4.598])
-r2 = leastsq(F2, 0, args=[5.598, 4.598, np.pi/6, 0])
-print(r2[0][0])
-print(np.concatenate([r1[0],r2[0]]))
+angles = [0,0,0,0]
+r1 = leastsq(F1, angles, args=[-2.25,-1.299,3.5, 4.5])
+print(np.round(r1[0],3))
+# r2 = leastsq(F2, 0, args=[5.464, 4.598, 0, np.pi/6])
+# print(r2)
+# print(np.round(np.concatenate([r1[0],r2[0]]),2))

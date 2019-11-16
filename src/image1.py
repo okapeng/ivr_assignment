@@ -26,18 +26,21 @@ class image_converter:
         self.pos_pub1 = rospy.Publisher('joint_pos1', Float64MultiArray, queue_size=5)
 
 
-    # def detect_target(self,image):
-    #     mask = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV), (11, 43, 46), (25, 255, 255))
-    #     # This applies a dilate that makes the binary region larger (the more iterations the larger it becomes)
-    #     kernel = np.ones((5, 5), np.uint8)
-    #     mask = cv2.dilate(mask, kernel, iterations=3)
-    #     cv2.imshow(mask)
-    #     # Obtain the moments of the binary image
-    #     M = cv2.moments(mask)
-    #     # Calculate pixel coordinates for the centre of the blob
-    #     cx = int(M['m10'] / M['m00'])
-    #     cy = int(M['m01'] / M['m00'])
-    #     return [cx, cy]
+    def detect_target(self,image):
+        mask = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV), (11, 43, 46), (25, 255, 255))
+        # This applies a dilate that makes the binary region larger (the more iterations the larger it becomes)
+        kernel = np.ones((8, 8), np.uint8)
+        # mask = cv2.dilate(mask, kernel, iterations=3)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        # if the target is hidden, then make it to the centre of red ball
+        if np.where(mask != 0)[0].shape[0] == 0:
+            return self.detect_red(image)
+        # Obtain the moments of the binary image
+        M = cv2.moments(mask)
+        # Calculate pixel coordinates for the centre of the blob
+        cx = int(M['m10'] / M['m00'])
+        cy = int(M['m01'] / M['m00'])
+        return [cx, cy]
 
         # In this method you can focus on detecting the centre of the red circle
 
@@ -49,7 +52,6 @@ class image_converter:
         mask = cv2.dilate(mask, kernel, iterations=3)
         # Obtain the moments of the binary image
         M = cv2.moments(mask)
-
         # Calculate pixel coordinates for the centre of the blob
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
@@ -102,9 +104,9 @@ class image_converter:
         circle1Pos = [j - i for i, j in zip(self.detect_blue(image), center)]
         circle2Pos = [j - i for i, j in zip(self.detect_green(image), center)]
         circle3Pos = [j - i for i, j in zip(self.detect_red(image), center)]
+        target = [j-i for i, j in zip(self.detect_target(image), center)]
 
-        # return a * np.array(circle1Pos + circle2Pos + circle3Pos)
-    return np.array(circle1Pos+ circle2Pos+ circle3Pos)
+        return a * np.array(circle1Pos + circle2Pos + circle3Pos + target)
 
     # Recieve data from camera 1, process it, and publish
     def callback1(self, data):
@@ -115,18 +117,16 @@ class image_converter:
             print(e)
 
         # Uncomment if you want to save the image
-        cv2.imwrite('image1_copy.png', self.cv_image1)
+        # cv2.imwrite('image1_copy.png', self.cv_image1)
 
         im1=cv2.imshow('window1', self.cv_image1)
         cv2.waitKey(1)
 
         joints_pos_data = self.detect_joint_pos(self.cv_image1)
+        # print(joints_pos_data)
 
         self.joints_pos = Float64MultiArray()
         self.joints_pos.data = joints_pos_data
-        
-        # self.target = self.detect_target(self.cv_image1)
-        print(self.joints_pos.data)
 
         # Publish the results
         try:
@@ -149,8 +149,3 @@ def main(args):
 # run the code if the node is called
 if __name__ == '__main__':
     main(sys.argv)
-<<<<<<< HEAD
-
-
-=======
->>>>>>> ea3ecdf857e71dc1e2abadc11f077e10cdd01df6
