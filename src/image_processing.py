@@ -5,6 +5,7 @@ import sys
 import rospy
 import cv2
 import numpy as np
+from scipy.optimize import leastsq
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, Float64
@@ -31,7 +32,7 @@ class image_processer:
         self.robot_joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
         # initialize the bridge between openCV and ROS
         self.bridge = CvBridge()
-        self.yellow = np.ones(4)
+        self.yellow = np.zeros(4)
         self.blue = np.ones(4)
         self.red = np.ones(4)
         self.green = np.ones(4)
@@ -62,7 +63,7 @@ class image_processer:
         self.error_d = ((pos_d - pos) - self.error)/dt
         # estimate error
         self.error = pos_d-pos
-        q = self.detect_joint_angles(image) # estimate initial value of joints'
+        q = self.estimate_joint_angles() # estimate initial value of joints'
         J_inv = np.linalg.pinv(self.calculate_jacobian(image))  # calculating the psudeo inverse of Jacobian
         dq_d =np.dot(J_inv, ( np.dot(K_d,self.error_d.transpose()) + np.dot(K_p,self.error.transpose()) ) )  # control input (angular velocity of joints)
         q_d = q + (dt * dq_d)  # control input (angular position of joints)
@@ -72,8 +73,17 @@ class image_processer:
     def calculate_jacobian(self):
         # Todo
 
-    def detect_joint_angles(self):
-        # Todo
+    def estimate_joint_angles(self):
+        def F2(x,data):
+            return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
+        def F1(x, data):
+            return ((-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[0]),
+                    (-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[1]),
+                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
+        solution = leastsq(F1, [0,0,0], args=[self.green[1],-self.green[0], self.green[2]])
+        self.joint1, self.joint2, self.joint3 = list(solution[0])
+        solution = leastsq(F2, 0, args=[self.red[2], self.green[2], self.joint2, self.joint3])
+        self.joint4 = solution[0][0]
 
     def callback1(self, pos):
         self.p1 = pos.data
@@ -111,8 +121,9 @@ class image_processer:
             self.red[:3] = a * self.red[:3]
             self.yellow[:3] = a * self.yellow[:3]
             self.green[:3] = a * self.green[:3]
-            print self.green
 
+    def detect_joint_angles(self):
+        theta1,theta2,theta3,theta4 = Symbols
   
 
     def transform(theta1,theta2,theta3,theta4):

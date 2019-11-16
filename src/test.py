@@ -25,23 +25,20 @@ def transform_matrix(alpha, r, d, theta):
 def F2(x,data):
     return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
 
-def F(x, data):
-    t1=x[0]
-    t2=x[1]
-    t3=x[2]
-    return ((-3*np.cos(t1)*np.sin(t2)*np.cos(t3)+3*np.sin(t1)*np.sin(t3)-data[0]),
-            (-3*np.sin(t1)*np.sin(t2)*np.cos(t3)-3*np.cos(t1)*np.sin(t3)-data[1]),
-            (3*np.cos(t2)*np.cos(t3)+2-data[2]))
+def F1(x, data):
+    return ((-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[0]),
+            (-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[1]),
+            (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
 
 
 X = np.array([0,0,0,1])
 # print(T)
 
-T=np.round(transform(0,np.pi/6,0,np.pi/6), 3)
+T=np.round(transform(0,0,np.pi/6,0), 3)
 print(T.dot(np.array([0,0,0,1])))
 # print(np.linalg.inv(T))
 angles = [0,0,0]
-r = leastsq(F, angles, args=[-1.5,0, 4.598])
-print(r)
-r = leastsq(F2, 0, args=[5.598, 4.598, np.pi/6, 0])
-print(r)
+r1 = leastsq(F1, angles, args=[-1.5,0, 4.598])
+r2 = leastsq(F2, 0, args=[5.598, 4.598, np.pi/6, 0])
+print(r2[0][0])
+print(np.concatenate([r1[0],r2[0]]))

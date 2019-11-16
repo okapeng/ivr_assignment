@@ -93,7 +93,8 @@ class image_converter:
     circle2Pos = [j-i for i, j in zip(self.detect_green(image), center)]
     circle3Pos = [j-i for i, j in zip(self.detect_red(image), center)]
 
-    return a * np.array(circle1Pos+ circle2Pos+ circle3Pos)
+    # return a * np.array(circle1Pos+ circle2Pos+ circle3Pos)
+    return np.array(circle1Pos+ circle2Pos+ circle3Pos)
 
 
 
