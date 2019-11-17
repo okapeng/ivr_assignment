@@ -23,6 +23,8 @@ class image_processer:
         self.joint_sub2 = rospy.Subscriber('joint_pos2', Float64MultiArray, self.callback2)
         # initialize a publisher to send robot end-effector position
         self.end_effector_pub = rospy.Publisher("end_effector_prediction",Float64MultiArray, queue_size=10)
+        # initialize a publisher to send robot end-effector position
+        self.end_effector_actual_pub = rospy.Publisher("end_effector_position",Float64MultiArray, queue_size=10)
         # initialize a publisher to send desired trajectory
         self.target_trajectory_pub = rospy.Publisher("target_trajectory",Float64MultiArray, queue_size=10)
         # initialize a publisher to send joints' angular position to the robot
@@ -71,7 +73,7 @@ class image_processer:
         self.error = pos_d-pos
         q1 = self.estimate_joint_angles()
         q = [self.joint1, self.joint2, self.joint3, self.joint4] # estimate initial value of joints'
-        print q
+        print("Joint angles: ", q)
         J_inv = np.linalg.pinv(self.calculate_jacobian(self.joint1,self.joint2,self.joint3,self.joint4))  # calculating the psudeo inverse of Jacobian
         dq_d =np.dot(J_inv, ( np.dot(K_d,self.error_d.transpose()) + np.dot(K_p,self.error.transpose()) ) )  # control input (angular velocity of joints)
         q_d = q + (dt * dq_d)  # control input (angular position of joints)
@@ -120,13 +122,16 @@ class image_processer:
             self.p1 = None
             self.p2 = None
             T = self.forward_kinematic()
-            print(np.round(T.dot(np.array([0,0,0,1])),3))
+            print("end_effector_pos ", np.round(T.dot(np.array([0,0,0,1])),3))
             q_d = self.control_closed()
             self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
             self.robot_joint1_pub.publish(self.joint1_d)
             self.robot_joint2_pub.publish(self.joint2_d)
             self.robot_joint3_pub.publish(self.joint3_d)
             self.robot_joint4_pub.publish(self.joint4_d)
+            end_effector_actual = Float64MultiArray()
+            end_effector_actual.data = self.red
+            self.end_effector_actual_pub.publish(end_effector_actual)
 
     def check_position(self, j1, j2):
         if (np.absolute(j1[2] - j2[2]) < 0.1):
@@ -158,24 +163,32 @@ class image_processer:
         return T21.dot(T32).dot(T43).dot(T54)
 
 
-    def estimate_joint_angles(self):
-        # def F1(x, data):
-        #     return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
-        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
-        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
-        #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
-        def F1(x, gx,gy,gz,rz):
-            return np.array([(3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-gx),
-                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-gy),
-                    (3*np.cos(x[1])*np.cos(x[2])+2-gz),
-                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
-        # solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
-        solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),
-                                 args=(self.green[0], self.green[1], self.green[2], self.red[2]))
 
-        self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution.x,2)
-        print(self.joint1, self.joint2, self.joint3, self.joint4)
-        # print(solution.x)
+    def estimate_joint_angles(self):
+        def F1(x, data):
+            return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
+                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
+                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
+                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
+        def F2(x, data):
+            return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
+                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
+                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
+        # def F1(x, gx,gy,gz,rz):
+        #     return np.array([(3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-gx),
+        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-gy),
+        #             (3*np.cos(x[1])*np.cos(x[2])+2-gz),
+        #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
+        solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        # solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),
+        #                          args=(self.green[0], self.green[1], self.green[2], self.red[2]))
+        # self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution[0] , 2)
+        # if(self.joint4 > np.pi/2 or self.joint4 < -np.pi/2):
+        #     solution = leastsq(F2, [0,0,0], args=[self.green[0],self.green[1], self.green[2]])
+        #     self.joint1, self.joint2, self.joint3 = np.round(solution[0] , 2)
+        #     self.joint4 = 0
+        # self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution.x,2)
+
 
     def calculate_jacobian(self,t1,t2,t3,t4):
         # calculate jacobian matrix
