@@ -123,7 +123,7 @@ class image_converter:
         # Uncomment if you want to save the image
         # cv2.imwrite('image1_copy.png', self.cv_image1)
 
-        im1=cv2.imshow('window1', self.cv_image1)
+        # im1=cv2.imshow('window1', self.cv_image1)
         cv2.waitKey(1)
 
         joints_pos_data = self.detect_joint_pos(self.cv_image1)

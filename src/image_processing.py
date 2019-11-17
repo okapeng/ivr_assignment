@@ -26,6 +26,7 @@ class image_processer:
         # initialize a publisher to send desired trajectory
         self.target_trajectory_pub = rospy.Publisher("target_trajectory",Float64MultiArray, queue_size=10)
         # initialize a publisher to send joints' angular position to the robot
+        # self.target_position_pub = rospy.Publisher("/target/target_detected",Float64MultiArray, queue_size=10)
         self.robot_joint1_pub = rospy.Publisher("/robot/joint1_position_controller/command", Float64, queue_size=10)
         self.robot_joint2_pub = rospy.Publisher("/robot/joint2_position_controller/command", Float64, queue_size=10)
         self.robot_joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
@@ -44,10 +45,14 @@ class image_processer:
         # initialize errors
         self.time_previous_step = np.array([rospy.get_time()], dtype='float64')     
         # initialize error and derivative of error for trajectory tracking  
-        self.error = np.array([0.0,0.0], dtype='float64')  
-        self.error_d = np.array([0.0,0.0], dtype='float64') 
+        self.error = np.array([0.0,0.0,0.0], dtype='float64')
+        self.error_d = np.array([0.0,0.0,0.0], dtype='float64')
+        self.joint1_d = Float64()
+        self.joint2_d = Float64()
+        self.joint3_d = Float64()
+        self.joint4_d = Float64()
 
-    def control_closed(self,image):
+    def control_closed(self):
         # P gain
         K_p = np.array([[10,0,0], [0,10,0], [0,0,10]])
         # D gain
@@ -57,40 +62,22 @@ class image_processer:
         dt = cur_time - self.time_previous_step
         self.time_previous_step = cur_time
         # robot end-effector position
-        pos = self.red
+        pos = self.red[:3]
         # desired trajectory
-        pos_d= self.target 
+        pos_d= self.target[:3]
         # estimate derivative of error
         self.error_d = ((pos_d - pos) - self.error)/dt
         # estimate error
         self.error = pos_d-pos
-        q = self.estimate_joint_angles() # estimate initial value of joints'
-        J_inv = np.linalg.pinv(self.calculate_jacobian(image))  # calculating the psudeo inverse of Jacobian
+        q1 = self.estimate_joint_angles()
+        q = [self.joint1, self.joint2, self.joint3, self.joint4] # estimate initial value of joints'
+        print q
+        J_inv = np.linalg.pinv(self.calculate_jacobian(self.joint1,self.joint2,self.joint3,self.joint4))  # calculating the psudeo inverse of Jacobian
         dq_d =np.dot(J_inv, ( np.dot(K_d,self.error_d.transpose()) + np.dot(K_p,self.error.transpose()) ) )  # control input (angular velocity of joints)
         q_d = q + (dt * dq_d)  # control input (angular position of joints)
         return q_d
 
 
-    def calculate_jacobian(self):
-        # Todo
-        return
-
-    def estimate_joint_angles(self):
-        # def F1(x, data):
-        #     return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
-        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
-        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
-        #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
-        def F1(x, gx,gy,gz,rz):
-            return np.array([(3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-gx),
-                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-gy),
-                    (3*np.cos(x[1])*np.cos(x[2])+2-gz),
-                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
-        # solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
-        solution = least_squares(F1, [0,0,0,0], bounds=([-np.pi/2,np.pi/2]), args=(self.green[0],self.green[1], self.green[2], self.red[2]))
-        self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution.x,2)
-        print(self.joint1, self.joint2, self.joint3, self.joint4)
-        # print(solution.x)
 
     def callback1(self, pos):
         self.p1 = np.reshape(np.array(pos.data), [4, 2])
@@ -98,14 +85,9 @@ class image_processer:
 
     def callback2(self, pos):
         self.p2 = np.reshape(np.array(pos.data), [4, 2])
-        # self.calculate_transform()  
+        self.calculate_transform()
 
-    def check_position(self, j1, j2):
-        if (np.absolute(j1[2] - j2[2]) < 0.1):
-            j1[0] = j1[0] if j1[0] != 0 else j2[0]
-            j2[0] = j2[0] if j2[0] != 0 else j1[0]
-            j1[1] = j1[1] if j1[1] != 0 else j2[1]
-            j2[1] = j2[1] if j2[1] != 0 else j1[1]
+
 
     def calculate_transform(self):
         if self.p1 is not None and self.p2 is not None:
@@ -128,6 +110,9 @@ class image_processer:
             self.check_position(self.red, self.blue)
             self.check_position(self.green, self.blue)
             self.check_position(self.red, self.green)
+            self.target_detected = Float64MultiArray()
+            self.target_detected.data = [self.target[0],self.target[1],self.target[2]]
+            self.target_trajectory_pub.publish(self.target_detected)
 
             # print("green: ", self.green)
             # print("red  : ", self.red)
@@ -136,7 +121,27 @@ class image_processer:
             self.p2 = None
             T = self.forward_kinematic()
             print(np.round(T.dot(np.array([0,0,0,1])),3))
-  
+            q_d = self.control_closed()
+            self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
+            self.robot_joint1_pub.publish(self.joint1_d)
+            self.robot_joint2_pub.publish(self.joint2_d)
+            self.robot_joint3_pub.publish(self.joint3_d)
+            self.robot_joint4_pub.publish(self.joint4_d)
+
+    def check_position(self, j1, j2):
+        if (np.absolute(j1[2] - j2[2]) < 0.1):
+            j1[0] = j1[0] if j1[0] != 0 else j2[0]
+            j2[0] = j2[0] if j2[0] != 0 else j1[0]
+            j1[1] = j1[1] if j1[1] != 0 else j2[1]
+            j2[1] = j2[1] if j2[1] != 0 else j1[1]
+
+    def transform_matrix(self, alpha, r, d, theta):
+        return np.array([
+            [np.cos(theta), -np.sin(theta)*np.cos(alpha), np.sin(theta)*np.sin(alpha), r*np.cos(theta)],
+            [np.sin(theta), np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), r*np.sin(theta)],
+            [0,np.sin(alpha), np.cos(alpha), d],
+            [0,0,0,1]
+        ])
 
     def forward_kinematic(self):
         self.estimate_joint_angles()
@@ -153,13 +158,60 @@ class image_processer:
         return T21.dot(T32).dot(T43).dot(T54)
 
 
-    def transform_matrix(self, alpha, r, d, theta):
+    def estimate_joint_angles(self):
+        # def F1(x, data):
+        #     return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
+        #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
+        def F1(x, gx,gy,gz,rz):
+            return np.array([(3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-gx),
+                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-gy),
+                    (3*np.cos(x[1])*np.cos(x[2])+2-gz),
+                    (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
+        # solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),
+                                 args=(self.green[0], self.green[1], self.green[2], self.red[2]))
+
+        self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution.x,2)
+        print(self.joint1, self.joint2, self.joint3, self.joint4)
+        # print(solution.x)
+
+    def calculate_jacobian(self,t1,t2,t3,t4):
+        # calculate jacobian matrix
+        def cos(x):
+            return np.cos(x)
+
+        def sin(x):
+            return np.sin(x)
+
+        j21 = - 3 * (cos(t3) * sin(t1) * sin(t2) + cos(t1) * sin(t3)) - 2 * (
+                cos(t3) * cos(t4) * sin(t1) * sin(t2) + cos(t1) * cos(t4) * sin(t3) + cos(t2) * sin(t1) * sin(t4))
+        j22 = 3 * cos(t1) * cos(t2) * cos(t3) - 2 * (
+                    -cos(t1) * cos(t2) * cos(t3) * cos(t4) + cos(t1) * sin(t2) * sin(t4))
+        j23 = -3 * (cos(t3) * sin(t1) + cos(t1) * sin(t2) * sin(t3)) - 2 * (
+                cos(t3) * cos(t4) * sin(t1) + cos(t1) * cos(t4) * sin(t2) * sin(t3))
+        j24 = -2 * (-cos(t1) * cos(t2) * cos(t4) + cos(t1) * cos(t3) * sin(t2) * sin(t4) - sin(t1) * sin(t3) * sin(t4))
+
+        j11 = 3 * (-cos(t1) * cos(t3) * sin(t2) + sin(t1) * sin(t3)) + 2 * (
+                -cos(t1) * cos(t3) * cos(t4) * sin(t2) + cos(t4) * sin(t1) * sin(t3) - cos(t1) * cos(t2) * sin(t4))
+        j12 = -3 * cos(t2) * cos(t3) * sin(t1) + 2 * (
+                    -cos(t2) * cos(t3) * cos(t4) * sin(t1) + sin(t1) * sin(t2) * sin(t4))
+        j13 = 3 * (-cos(t1) * cos(t3) + sin(t1) * sin(t2) * sin(t3)) + 2 * (
+                -cos(t1) * cos(t3) * cos(t4) + cos(t4) * sin(t1) * sin(t2) * sin(t3))
+        j14 = 2 * (-cos(t2) * cos(t4) * sin(t1) + cos(t3) * sin(t1) * sin(t2) * sin(t4) + cos(t1) * sin(t3) * sin(t4))
+
+        j31 = 0
+        j32 = -3 * cos(t3) * sin(t2) + 2 * (-cos(t3) * cos(t4) * sin(t2) - cos(t2) * sin(t4))
+        j33 = -3 * cos(t2) * sin(t3) - 2 * cos(t2) * cos(t4) * sin(t3)
+        j34 = 2 * (-cos(t4) * sin(t2) - cos(t2) * cos(t3) * sin(t4))
         return np.array([
-            [np.cos(theta), -np.sin(theta)*np.cos(alpha), np.sin(theta)*np.sin(alpha), r*np.cos(theta)],
-            [np.sin(theta), np.cos(theta)*np.cos(alpha), -np.cos(theta)*np.sin(alpha), r*np.sin(theta)],
-            [0,np.sin(alpha), np.cos(alpha), d],
-            [0,0,0,1]
+            [-j11, -j12, -j13, -j14],
+            [-j21, -j22, -j23, -j24],
+            [j31, j32, j33, j34]
         ])
+
+
 
 # call the class
 def main(args):
