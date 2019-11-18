@@ -42,6 +42,7 @@ class image_processer:
         self.target = np.ones(4)
         self.p1 = None
         self.p2 = None
+        self.joint1, self.joint2, self.joint3, self.joint4 = np.zeros(4)
         # record the begining time
         self.time_trajectory = rospy.get_time()
         # initialize errors
@@ -106,7 +107,11 @@ class image_processer:
             self.blue[2] = self.p2[0, 1] if self.p2[0, 1] == 0 else self.p1[0, 1]
             self.green[2] = self.p2[1, 1] if self.p2[1, 1] == 0 else self.p1[1, 1]
             self.red[2] = self.p2[2, 1] if self.p2[2, 1] == 0 else self.p1[2, 1]
-            self.target[2] = self.p2[3, 1] if self.p2[3, 1] == 0 else self.p1[3, 1]
+            self.target[2] = self.p2[3, 1] if (self.p2[3, 1] < 7) else self.p1[3, 1]
+            if self.target[2] > 7:
+                # print("end_effector_pos: ", np.round(T.dot(np.array([0,0,0,1])),3))
+                print("camera1         : ", self.p1[3,:])
+                print("camera2         : ", self.p2[3,:])
 
             self.check_position(self.red, self.blue)
             self.check_position(self.green, self.blue)
@@ -121,7 +126,7 @@ class image_processer:
             self.p1 = None
             self.p2 = None
             T = self.forward_kinematic()
-            print("end_effector_pos ", np.round(T.dot(np.array([0,0,0,1])),3))
+            # print("end_effector_pos ", np.round(T.dot(np.array([0,0,0,1])),3))
             q_d = self.control_closed()
             
             self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
@@ -170,10 +175,10 @@ class image_processer:
         #             (3*np.cos(x[1])*np.cos(x[2])+2-gz),
         #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
         # (np.square(x[0])+np.square(x[1])+np.square(x[2])+np.square(x[3]))
-        solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        solution = leastsq(F1, [0,0,0,0], full_output=1, args=[self.green[0],self.green[1], self.green[2], self.red[2]])
         # solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),max_nfev=300,
         #                          args=(self.green[0], self.green[1], self.green[2], self.red[2]))
-        if(reduce(lambda x,y: x or y>np.pi or y<-np.pi, solution[0], False)):
+        if(reduce(lambda x,y: x or y>np.pi/2 or y<-np.pi/2, solution[0][1:4], False) or solution[0][0]>np.pi or solution[0][0]<-np.pi):
             return
         self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution[0] , 2)
 

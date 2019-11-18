@@ -40,6 +40,8 @@ class image_converter:
         # Calculate pixel coordinates for the centre of the blob
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
+        if(cy>7):
+            cv2.imshow("mask", mask)
         return [cx, cy]
 
     def detect_red(self, image):
