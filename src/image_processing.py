@@ -5,7 +5,7 @@ import sys
 import rospy
 import cv2
 import numpy as np
-from scipy.optimize import leastsq, least_squares
+from scipy.optimize import leastsq, least_squares, fsolve
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from std_msgs.msg import Float64MultiArray, Float64
@@ -93,7 +93,6 @@ class image_processer:
 
     def calculate_transform(self):
         if self.p1 is not None and self.p2 is not None:
-            # print(self.p1)
             self.blue[1] = -self.p1[0, 0]
             self.green[1] = -self.p1[1, 0]
             self.red[1] = -self.p1[2, 0]
@@ -124,6 +123,7 @@ class image_processer:
             T = self.forward_kinematic()
             print("end_effector_pos ", np.round(T.dot(np.array([0,0,0,1])),3))
             q_d = self.control_closed()
+            
             self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
             self.robot_joint1_pub.publish(self.joint1_d)
             self.robot_joint2_pub.publish(self.joint2_d)
@@ -150,12 +150,6 @@ class image_processer:
 
     def forward_kinematic(self):
         self.estimate_joint_angles()
-        # T21 = self.transform_matrix(np.pi/2, 0, 2, self.joint1)
-        # T32 = self.transform_matrix(np.pi/2, 0, 0, self.joint2+np.pi/2)
-        # T43 = self.transform_matrix(np.pi/2, 0, 0, self.joint3+np.pi/2)
-        # T54 = self.transform_matrix(np.pi/2, 0, 3, np.pi/2)
-        # T65 = self.transform_matrix(-np.pi/2, 0, 0, self.joint4)
-        # T76 = self.transform_matrix(0, 0, 2, 0)
         T21 = self.transform_matrix(np.pi/2, 0, 2, self.joint1+np.pi/2)
         T32 = self.transform_matrix(np.pi/2, 0, 0, self.joint2+np.pi/2)
         T43 = self.transform_matrix(-np.pi/2, 3, 0, self.joint3)
@@ -170,19 +164,19 @@ class image_processer:
                     (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
                     (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
                     (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
-        def F2(x, data):
-            return ((3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-data[0]),
-                    (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-data[1]),
-                    (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
         # def F1(x, gx,gy,gz,rz):
         #     return np.array([(3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.cos(x[0])*np.sin(x[2])-gx),
         #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.sin(x[0])*np.sin(x[2])-gy),
         #             (3*np.cos(x[1])*np.cos(x[2])+2-gz),
         #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
+        # (np.square(x[0])+np.square(x[1])+np.square(x[2])+np.square(x[3]))
         solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
-        # solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),
+        # solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),max_nfev=300,
         #                          args=(self.green[0], self.green[1], self.green[2], self.red[2]))
-        # self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution[0] , 2)
+        if(reduce(lambda x,y: x or y>np.pi or y<-np.pi, solution[0], False)):
+            return
+        self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution[0] , 2)
+
         # if(self.joint4 > np.pi/2 or self.joint4 < -np.pi/2):
         #     solution = leastsq(F2, [0,0,0], args=[self.green[0],self.green[1], self.green[2]])
         #     self.joint1, self.joint2, self.joint3 = np.round(solution[0] , 2)

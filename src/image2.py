@@ -53,6 +53,8 @@ class image_converter:
         mask = cv2.dilate(mask, kernel, iterations=3)
         # Obtain the moments of the binary image
         M = cv2.moments(mask)
+        if(M['m00'] == 0):
+            return [0,0]
         # Calculate pixel coordinates for the centre of the blob
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
@@ -64,6 +66,8 @@ class image_converter:
         kernel = np.ones((5, 5), np.uint8)
         mask = cv2.dilate(mask, kernel, iterations=3)
         M = cv2.moments(mask)
+        if(M['m00'] == 0):
+            return [0,0]
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
         return [cx, cy]
@@ -74,6 +78,8 @@ class image_converter:
         kernel = np.ones((5, 5), np.uint8)
         mask = cv2.dilate(mask, kernel, iterations=3)
         M = cv2.moments(mask)
+        if(M['m00'] == 0):
+            return [0,0]
         cx = int(M['m10'] / M['m00'])
         cy = int(M['m01'] / M['m00'])
         return [cx, cy]
@@ -127,7 +133,7 @@ class image_converter:
 
         self.joints_pos = Float64MultiArray()
         self.joints_pos.data = joints_pos_data
-        print(self.joints_pos.data)
+        # print(self.joints_pos.data)
 
         # Publish the results
         try:

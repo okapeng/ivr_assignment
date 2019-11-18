@@ -127,7 +127,7 @@ class image_converter:
         cv2.waitKey(1)
 
         joints_pos_data = self.detect_joint_pos(self.cv_image1)
-        print(joints_pos_data)
+        # print(joints_pos_data)
 
         self.joints_pos = Float64MultiArray()
         self.joints_pos.data = joints_pos_data
