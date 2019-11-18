@@ -53,3 +53,28 @@ print(np.round(r1[0],3))
 # r2 = leastsq(F2, 0, args=[5.464, 4.598, 0, np.pi/6])
 # print(r2)
 # print(np.round(np.concatenate([r1[0],r2[0]]),2))
+
+# def F2(x,data):
+        #     return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
+        # def F2(x,data):
+        #     return (2*(np.cos(data[2])*np.cos(data[3])*np.cos(x)-np.sin(data[2])*np.sin(x))+data[1]-data[0])
+        # # def F1(x, data):
+        # #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        # #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        # #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
+        # # def F1(x, data):
+        # #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        # #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        # #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]))
+        # def F1(x, data):
+        #     return ((-3*np.sin(x[0])*np.sin(x[1])*np.cos(x[2])-3*np.cos(x[0])*np.sin(x[2])-data[0]),
+        #             (-3*np.cos(x[0])*np.sin(x[1])*np.cos(x[2])+3*np.sin(x[0])*np.sin(x[2])-data[1]),
+        #             (3*np.cos(x[1])*np.cos(x[2])+2-data[2]),
+        #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+data[2]-data[3]))
+        # solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        # self.joint1, self.joint2, self.joint3, self.joint4 = list(np.round(solution[0],1))
+        # # solution = leastsq(F1, [0,0,0], args=[self.green[0],self.green[1], self.green[2]])
+        # # self.joint1, self.joint2, self.joint3 = list(np.round(solution[0],1))
+        # # solution = leastsq(F2, 0, args=[self.red[2], self.green[2], self.joint2, self.joint3])
+        # # self.joint4 = np.round(solution[0][0],1)
+        # print(self.joint1, self.joint2, self.joint3, self.joint4)
