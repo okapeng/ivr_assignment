@@ -128,14 +128,14 @@ class image_processer:
             print("estimate end_effector: ", np.round(T.dot(np.array([0,0,0,1])),3))
             q_d = self.control_closed()
             
-            # self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
-            # self.robot_joint1_pub.publish(self.joint1_d)
-            # self.robot_joint2_pub.publish(self.joint2_d)
-            # self.robot_joint3_pub.publish(self.joint3_d)
-            # self.robot_joint4_pub.publish(self.joint4_d)
-            # end_effector_actual = Float64MultiArray()
-            # end_effector_actual.data = self.red
-            # self.end_effector_actual_pub.publish(end_effector_actual)
+            self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
+            self.robot_joint1_pub.publish(self.joint1_d)
+            self.robot_joint2_pub.publish(self.joint2_d)
+            self.robot_joint3_pub.publish(self.joint3_d)
+            self.robot_joint4_pub.publish(self.joint4_d)
+            end_effector_actual = Float64MultiArray()
+            end_effector_actual.data = self.red
+            self.end_effector_actual_pub.publish(end_effector_actual)
 
     def check_position(self, j1, j2):
         if (np.absolute(j1[2] - j2[2]) < 0.1 or j1[0] == 0 or j1[1] == 0 or j2[0] == 0 or j2[1] == 0):
