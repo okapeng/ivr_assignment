@@ -74,25 +74,22 @@ class image_processer:
         self.error = pos_d-pos
         q1 = self.estimate_joint_angles()
         q = [self.joint1, self.joint2, self.joint3, self.joint4] # estimate initial value of joints'
-        print("Joint angles: ", q)
         J_inv = np.linalg.pinv(self.calculate_jacobian(self.joint1,self.joint2,self.joint3,self.joint4))  # calculating the psudeo inverse of Jacobian
         dq_d =np.dot(J_inv, ( np.dot(K_d,self.error_d.transpose()) + np.dot(K_p,self.error.transpose()) ) )  # control input (angular velocity of joints)
         q_d = q + (dt * dq_d)  # control input (angular position of joints)
         return q_d
 
 
-
     def callback1(self, pos):
         self.p1 = np.reshape(np.array(pos.data), [4, 2])
-        self.calculate_transform()
+        self.control()
 
     def callback2(self, pos):
         self.p2 = np.reshape(np.array(pos.data), [4, 2])
-        self.calculate_transform()
+        self.control()
 
 
-
-    def calculate_transform(self):
+    def control(self):
         if self.p1 is not None and self.p2 is not None:
             self.blue[1] = -self.p1[0, 0]
             self.green[1] = -self.p1[1, 0]
@@ -126,20 +123,22 @@ class image_processer:
             self.p1 = None
             self.p2 = None
             T = self.forward_kinematic()
-            # print("end_effector_pos ", np.round(T.dot(np.array([0,0,0,1])),3))
+            print("joint angles: ", [self.joint1, self.joint2, self.joint3, self.joint4])
+            print("detect end_effector: ", self.red)
+            print("estimate end_effector: ", np.round(T.dot(np.array([0,0,0,1])),3))
             q_d = self.control_closed()
             
-            self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
-            self.robot_joint1_pub.publish(self.joint1_d)
-            self.robot_joint2_pub.publish(self.joint2_d)
-            self.robot_joint3_pub.publish(self.joint3_d)
-            self.robot_joint4_pub.publish(self.joint4_d)
-            end_effector_actual = Float64MultiArray()
-            end_effector_actual.data = self.red
-            self.end_effector_actual_pub.publish(end_effector_actual)
+            # self.joint1_d.data,self.joint2_d.data,self.joint3_d.data,self.joint4_d.data = q_d[0],q_d[1],q_d[2],q_d[3]
+            # self.robot_joint1_pub.publish(self.joint1_d)
+            # self.robot_joint2_pub.publish(self.joint2_d)
+            # self.robot_joint3_pub.publish(self.joint3_d)
+            # self.robot_joint4_pub.publish(self.joint4_d)
+            # end_effector_actual = Float64MultiArray()
+            # end_effector_actual.data = self.red
+            # self.end_effector_actual_pub.publish(end_effector_actual)
 
     def check_position(self, j1, j2):
-        if (np.absolute(j1[2] - j2[2]) < 0.1):
+        if (np.absolute(j1[2] - j2[2]) < 0.1 or j1[0] == 0 or j1[1] == 0 or j2[0] == 0 or j2[1] == 0):
             j1[0] = j1[0] if j1[0] != 0 else j2[0]
             j2[0] = j2[0] if j2[0] != 0 else j1[0]
             j1[1] = j1[1] if j1[1] != 0 else j2[1]
@@ -175,10 +174,12 @@ class image_processer:
         #             (3*np.cos(x[1])*np.cos(x[2])+2-gz),
         #             (2*(np.cos(x[1])*np.cos(x[2])*np.cos(x[3])-np.sin(x[1])*np.sin(x[3]))+gz-rz)])
         # (np.square(x[0])+np.square(x[1])+np.square(x[2])+np.square(x[3]))
-        solution = leastsq(F1, [0,0,0,0], full_output=1, args=[self.green[0],self.green[1], self.green[2], self.red[2]])
+        solution = leastsq(F1, [0,0,0,0], args=[self.green[0],self.green[1], self.green[2], self.red[2]])
         # solution = least_squares(F1, [0, 0, 0, 0], bounds=([-np.pi / 2, np.pi / 2]),max_nfev=300,
         #                          args=(self.green[0], self.green[1], self.green[2], self.red[2]))
-        if(reduce(lambda x,y: x or y>np.pi/2 or y<-np.pi/2, solution[0][1:4], False) or solution[0][0]>np.pi or solution[0][0]<-np.pi):
+        # if(reduce(lambda x,y: x or y>np.pi/2 or y<-np.pi/2, solution[0][1:4], False) or solution[0][0]>np.pi or solution[0][0]<-np.pi):
+        #     return
+        if(reduce(lambda x,y: x or y>np.pi or y<-np.pi, solution[0], False) ):
             return
         self.joint1, self.joint2, self.joint3, self.joint4 = np.round(solution[0] , 2)
 
