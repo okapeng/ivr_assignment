@@ -58,12 +58,12 @@ class image_processer:
         self.joint3_d = Float64()
         self.joint4_d = Float64()
 
-    # Recieve the processed data from camera1 and control the robot accordingly
+    # Recieve the processed data from camera 1 and control the robot accordingly
     def callback1(self, pos):
         self.camera1_data = np.reshape(np.array(pos.data), [4, 2])
         self.control()
 
-    # Recieve the processed data from camera2 and control the robot accordingly
+    # Recieve the processed data from camera 2 and control the robot accordingly
     def callback2(self, pos):
         self.camera2_data = np.reshape(np.array(pos.data), [4, 2])
         self.control()
@@ -116,7 +116,7 @@ class image_processer:
             # publish the end effector postion estimated using Forward Kinematic
             end_effector_fk = Float64MultiArray()
             end_effector_fk.data = self.forward_kinematic().dot(np.array([0,0,0,1]))
-            end_effector_estimate_pub.publish(end_effector_fk)
+            self.end_effector_estimate_pub.publish(end_effector_fk)
 
     # detect if one joint is shielded by another and resolve its position using data from both camera
     def correct_coord(self, msg, j1, j2):
@@ -180,6 +180,7 @@ class image_processer:
 
         # estimate the joint angles according to the position obtained from image
         self.estimate_joint_angles()
+        q = [self.joint1, self.joint2, self.joint3, self.joint4]
         J_inv = np.linalg.pinv(self.calculate_jacobian(self.joint1,self.joint2,self.joint3,self.joint4))  # calculating the psudeo inverse of Jacobian
         dq_d =np.dot(J_inv, ( np.dot(K_d,self.error_d.transpose()) + np.dot(K_p,self.error.transpose()) ) )  # control input (angular velocity of joints)
         q_d = q + (dt * dq_d)  # control input (angular position of joints)
