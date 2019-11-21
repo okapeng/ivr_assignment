@@ -96,9 +96,7 @@ class image_processer:
             self.camera1_data = None
             self.camera2_data = None
             
-            # print("joint angles: ", [self.joint1, self.joint2, self.joint3, self.joint4])
-            # print("detect end_effector: ", self.red)
-            # print("estimate end_effector: ", np.round(T.dot(np.array([0,0,0,1])),3))  
+            # Close-loop control
             q_d = self.control_closed()
 
             # publish the target position detected from the image
