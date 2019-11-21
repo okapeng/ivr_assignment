@@ -12,7 +12,6 @@ from cv_bridge import CvBridge, CvBridgeError
 
 
 class image_converter:
-
     # Defines publisher and subscriber
     def __init__(self):
         # initialize the node named image_processing
@@ -146,8 +145,6 @@ class image_converter:
             print(e)
 
 # call the class
-
-
 def main(args):
     ic = image_converter()
     try:
@@ -155,6 +152,7 @@ def main(args):
     except KeyboardInterrupt:
         print("Shutting down")
     cv2.destroyAllWindows()
+
 
 
 # run the code if the node is called
