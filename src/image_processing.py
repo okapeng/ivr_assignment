@@ -22,7 +22,7 @@ class image_processer:
         self.joint_sub1 = rospy.Subscriber('joint_pos1', Float64MultiArray, self.callback1)
         self.joint_sub2 = rospy.Subscriber('joint_pos2', Float64MultiArray, self.callback2)
         # initialize a publisher to send robot end-effector position
-        self.end_effector_pub = rospy.Publisher("end_effector_prediction",Float64MultiArray, queue_size=10)
+        self.end_effector_estimate_pub = rospy.Publisher("end_effector_prediction",Float64MultiArray, queue_size=10)
         # initialize a publisher to send robot end-effector position
         self.end_effector_actual_pub = rospy.Publisher("end_effector_position",Float64MultiArray, queue_size=10)
         # initialize a publisher to send desired trajectory detected from the image
@@ -95,10 +95,10 @@ class image_processer:
 
             self.camera1_data = None
             self.camera2_data = None
-            T = self.forward_kinematic()
+            
             # print("joint angles: ", [self.joint1, self.joint2, self.joint3, self.joint4])
             # print("detect end_effector: ", self.red)
-            # print("estimate end_effector: ", np.round(T.dot(np.array([0,0,0,1])),3))
+            # print("estimate end_effector: ", np.round(T.dot(np.array([0,0,0,1])),3))  
             q_d = self.control_closed()
 
             # publish the target position detected from the image
@@ -115,6 +115,10 @@ class image_processer:
             end_effector_actual_pos = Float64MultiArray()
             end_effector_actual_pos.data = self.red
             self.end_effector_actual_pub.publish(end_effector_actual_pos)
+            # publish the end effector postion estimated using Forward Kinematic
+            end_effector_fk = Float64MultiArray()
+            end_effector_fk.data = self.forward_kinematic().dot(np.array([0,0,0,1]))
+            end_effector_estimate_pub.publish(end_effector_fk)
 
     # detect if one joint is shielded by another and resolve its position using data from both camera
     def correct_coord(self, msg, j1, j2):
